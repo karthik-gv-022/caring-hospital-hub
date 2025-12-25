@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Brain, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { Brain, Mail, Lock, User, ArrowRight, Loader2, Stethoscope, UserRound } from "lucide-react";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 const signInSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -24,9 +26,12 @@ const signUpSchema = z.object({
   path: ["confirmPassword"],
 });
 
+type UserRole = "patient" | "doctor";
+
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<UserRole>("patient");
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -35,8 +40,30 @@ export default function Auth() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect based on role after login
+  useEffect(() => {
+    const checkRoleAndRedirect = async () => {
+      if (user) {
+        // Check if user is a doctor
+        const { data: doctorData } = await supabase
+          .from("doctors")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (doctorData) {
+          navigate("/doctor-dashboard");
+        } else {
+          navigate("/");
+        }
+      }
+    };
+
+    checkRoleAndRedirect();
+  }, [user, navigate]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -59,6 +86,17 @@ export default function Auth() {
             }
           });
           setErrors(fieldErrors);
+          setIsLoading(false);
+          return;
+        }
+
+        // For doctors, we don't allow self-registration
+        if (selectedRole === "doctor") {
+          toast({
+            title: "Doctor Registration",
+            description: "Doctor accounts must be created by an administrator. Please contact support.",
+            variant: "destructive",
+          });
           setIsLoading(false);
           return;
         }
@@ -115,11 +153,11 @@ export default function Auth() {
             });
           }
         } else {
+          // Role check and redirect happens in useEffect
           toast({
             title: "Welcome back!",
             description: "You have successfully signed in.",
           });
-          navigate("/");
         }
       }
     } catch (err) {
@@ -141,8 +179,8 @@ export default function Auth() {
       </div>
 
       <Card className="w-full max-w-md p-8 bg-gradient-card border-border/50 relative z-10 animate-slide-up">
-        <div className="flex flex-col items-center mb-8">
-          <Link to="/" className="flex items-center gap-2 group mb-6">
+        <div className="flex flex-col items-center mb-6">
+          <Link to="/" className="flex items-center gap-2 group mb-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-shadow duration-300">
               <Brain className="w-6 h-6 text-primary-foreground" />
             </div>
@@ -156,6 +194,19 @@ export default function Auth() {
               : "Sign in to access your dashboard"}
           </p>
         </div>
+
+        <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="patient" className="gap-2">
+              <UserRound className="w-4 h-4" />
+              Patient
+            </TabsTrigger>
+            <TabsTrigger value="doctor" className="gap-2">
+              <Stethoscope className="w-4 h-4" />
+              Doctor
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
@@ -184,7 +235,7 @@ export default function Auth() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={selectedRole === "doctor" ? "doctor@hospital.com" : "you@example.com"}
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
                 className="pl-10"
@@ -233,12 +284,18 @@ export default function Auth() {
             </div>
           )}
 
+          {isSignUp && selectedRole === "doctor" && (
+            <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+              Doctor accounts require administrator approval. Please contact the hospital administration to register as a doctor.
+            </p>
+          )}
+
           <Button
             type="submit"
             variant="hero"
             size="lg"
             className="w-full gap-2"
-            disabled={isLoading}
+            disabled={isLoading || (isSignUp && selectedRole === "doctor")}
           >
             {isLoading ? (
               <>
@@ -247,7 +304,7 @@ export default function Auth() {
               </>
             ) : (
               <>
-                {isSignUp ? "Create Account" : "Sign In"}
+                {isSignUp ? "Create Account" : `Sign In as ${selectedRole === "doctor" ? "Doctor" : "Patient"}`}
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
