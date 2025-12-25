@@ -4,6 +4,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { QueueDisplay } from "@/components/dashboard/QueueDisplay";
 import { DoctorCard } from "@/components/dashboard/DoctorCard";
 import { AIRecommendation } from "@/components/dashboard/AIRecommendation";
+import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 import {
   Users,
   Stethoscope,
@@ -15,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Doctor {
   id: string;
@@ -27,6 +29,8 @@ interface Doctor {
 }
 
 const Index = () => {
+  const { user } = useAuth();
+  const [patientId, setPatientId] = useState<string | undefined>();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [stats, setStats] = useState({
     totalPatients: 0,
@@ -34,6 +38,24 @@ const Index = () => {
     appointments: 0,
     avgWaitTime: 0,
   });
+
+  useEffect(() => {
+    const fetchPatientId = async () => {
+      if (!user) {
+        setPatientId(undefined);
+        return;
+      }
+      const { data } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setPatientId(data.id);
+      }
+    };
+    fetchPatientId();
+  }, [user]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -224,6 +246,9 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* AI Chatbot */}
+      <ChatbotWidget patientId={patientId} />
     </div>
   );
 };
