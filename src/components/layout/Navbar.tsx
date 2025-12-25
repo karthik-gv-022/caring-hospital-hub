@@ -16,6 +16,7 @@ import {
   User,
   Key,
   LayoutDashboard,
+  Pill,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,6 +32,7 @@ const navLinks = [
   { to: "/patients", label: "Patients", icon: Users },
   { to: "/doctors", label: "Doctors", icon: Stethoscope },
   { to: "/appointments", label: "Appointments", icon: Calendar },
+  { to: "/pharmacy", label: "Pharmacy", icon: Pill },
 ];
 
 export function Navbar() {
