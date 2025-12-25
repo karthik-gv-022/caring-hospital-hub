@@ -16,9 +16,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Timer,
-  ClipboardList
+  ClipboardList,
+  Printer
 } from "lucide-react";
 import { format } from "date-fns";
+import { PrintablePrescription } from "./PrintablePrescription";
 
 interface PrescriptionItem {
   id: string;
@@ -257,9 +259,23 @@ export function AppointmentHistory({ patientId }: AppointmentHistoryProps) {
                           <CardTitle className="text-base">
                             {prescription.diagnosis || "Prescription"}
                           </CardTitle>
-                          <Badge variant={prescription.is_valid ? "secondary" : "outline"}>
-                            {prescription.is_valid ? "Active" : "Expired"}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <PrintablePrescription 
+                              prescription={{
+                                ...prescription,
+                                doctor: appointment.doctor,
+                              }}
+                              trigger={
+                                <Button variant="outline" size="sm" className="gap-1 h-7">
+                                  <Printer className="w-3 h-3" />
+                                  Print
+                                </Button>
+                              }
+                            />
+                            <Badge variant={prescription.is_valid ? "secondary" : "outline"}>
+                              {prescription.is_valid ? "Active" : "Expired"}
+                            </Badge>
+                          </div>
                         </div>
                         {prescription.valid_until && (
                           <CardDescription>
