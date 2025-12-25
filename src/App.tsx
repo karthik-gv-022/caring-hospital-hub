@@ -10,6 +10,8 @@ import Auth from "./pages/Auth";
 import Patients from "./pages/Patients";
 import Doctors from "./pages/Doctors";
 import Appointments from "./pages/Appointments";
+import ApiKeys from "./pages/ApiKeys";
+import DoctorDashboard from "./pages/DoctorDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,8 @@ const App = () => (
               <Route path="/patients" element={<Patients />} />
               <Route path="/doctors" element={<Doctors />} />
               <Route path="/appointments" element={<Appointments />} />
+              <Route path="/api-keys" element={<ApiKeys />} />
+              <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
