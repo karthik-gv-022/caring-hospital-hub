@@ -1,0 +1,97 @@
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { 
+  Activity, 
+  Users, 
+  Calendar, 
+  Stethoscope,
+  Menu,
+  X,
+  Brain
+} from "lucide-react";
+
+const navLinks = [
+  { to: "/", label: "Dashboard", icon: Activity },
+  { to: "/patients", label: "Patients", icon: Users },
+  { to: "/doctors", label: "Doctors", icon: Stethoscope },
+  { to: "/appointments", label: "Appointments", icon: Calendar },
+];
+
+export function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-shadow duration-300">
+                <Brain className="w-5 h-5 text-primary-foreground" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-lg leading-tight">MediAI</span>
+              <span className="text-xs text-muted-foreground leading-tight">Hospital System</span>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = location.pathname === link.to;
+              return (
+                <Link key={link.to} to={link.to}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={`gap-2 ${isActive ? "bg-accent text-accent-foreground" : ""}`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {link.label}
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </Button>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isOpen && (
+          <div className="md:hidden py-4 border-t border-border animate-fade-in">
+            <div className="flex flex-col gap-2">
+              {navLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname === link.to;
+                return (
+                  <Link key={link.to} to={link.to} onClick={() => setIsOpen(false)}>
+                    <Button
+                      variant={isActive ? "secondary" : "ghost"}
+                      className={`w-full justify-start gap-2 ${isActive ? "bg-accent text-accent-foreground" : ""}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {link.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
