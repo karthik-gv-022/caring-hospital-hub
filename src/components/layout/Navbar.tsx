@@ -14,7 +14,7 @@ import {
   LogIn,
   LogOut,
   User,
-  Key,
+  
   LayoutDashboard,
   Pill,
 } from "lucide-react";
@@ -127,12 +127,6 @@ export function Navbar() {
                     <Link to="/my-profile">
                       <User className="w-4 h-4" />
                       My Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" asChild>
-                    <Link to="/api-keys">
-                      <Key className="w-4 h-4" />
-                      API Keys
                     </Link>
                   </DropdownMenuItem>
                   {isDoctor && (

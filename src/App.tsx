@@ -10,7 +10,7 @@ import Auth from "./pages/Auth";
 import Patients from "./pages/Patients";
 import Doctors from "./pages/Doctors";
 import Appointments from "./pages/Appointments";
-import ApiKeys from "./pages/ApiKeys";
+
 import DoctorDashboard from "./pages/DoctorDashboard";
 import PatientProfile from "./pages/PatientProfile";
 import Pharmacy from "./pages/Pharmacy";
@@ -33,7 +33,7 @@ const App = () => (
               <Route path="/doctors" element={<Doctors />} />
               <Route path="/appointments" element={<Appointments />} />
               <Route path="/pharmacy" element={<Pharmacy />} />
-              <Route path="/api-keys" element={<ApiKeys />} />
+              
               <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
               <Route path="/my-profile" element={<PatientProfile />} />
               <Route path="*" element={<NotFound />} />
