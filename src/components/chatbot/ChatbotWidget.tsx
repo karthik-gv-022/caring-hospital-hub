@@ -11,27 +11,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useChatbot, ChatMessage } from "@/hooks/useChatbot";
 import { useVoiceInput, SUPPORTED_LANGUAGES, LanguageCode } from "@/hooks/useVoiceInput";
-import { useAuth } from "@/hooks/useAuth";
 import { 
   MessageCircle, 
   X, 
   Send, 
   Bot, 
   User, 
-  Trash2,
   Stethoscope,
   Calendar,
   HelpCircle,
   Clock,
   Mic,
   MicOff,
-  Plus,
-  History,
-  ChevronLeft,
   Languages
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 interface ChatbotWidgetProps {
   patientId?: string;
@@ -45,22 +39,15 @@ const suggestedQuestions = [
 ];
 
 export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
-  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
   const [voiceLanguage, setVoiceLanguage] = useState<LanguageCode>("en-IN");
   
   const { 
     messages, 
-    conversations,
-    currentConversationId,
     isLoading, 
-    isLoadingHistory,
-    sendMessage, 
-    startNewConversation,
-    loadConversation,
-    deleteConversation 
+    sendMessage,
+    clearMessages
   } = useChatbot(patientId);
   
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -70,7 +57,6 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
     isListening, 
     isSupported: voiceSupported, 
     interimTranscript,
-    currentLanguage,
     toggleListening,
     changeLanguage 
   } = useVoiceInput({
@@ -95,10 +81,16 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current && !showHistory) {
+    if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [isOpen, showHistory]);
+  }, [isOpen]);
+
+  // Clear messages when chat is closed
+  const handleClose = () => {
+    setIsOpen(false);
+    clearMessages();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,66 +140,6 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
     );
   };
 
-  const renderHistoryView = () => (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center gap-2 p-4 border-b">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setShowHistory(false)}
-          className="h-8 w-8"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <h3 className="font-semibold">Chat History</h3>
-      </div>
-      
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-2">
-          {conversations.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No previous conversations
-            </p>
-          ) : (
-            conversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={cn(
-                  "p-3 rounded-lg border cursor-pointer hover:border-primary/50 transition-colors",
-                  currentConversationId === conv.id && "border-primary bg-primary/5"
-                )}
-                onClick={() => {
-                  loadConversation(conv.id);
-                  setShowHistory(false);
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{conv.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(conv.updated_at), "MMM d, h:mm a")}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteConversation(conv.id);
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </ScrollArea>
-    </div>
-  );
-
   return (
     <>
       {/* Chat Button */}
@@ -247,181 +179,142 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                {user && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={startNewConversation}
-                      className="h-8 w-8"
-                      title="New conversation"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setShowHistory(!showHistory)}
-                      className="h-8 w-8"
-                      title="Chat history"
-                    >
-                      <History className="w-4 h-4" />
-                    </Button>
-                  </>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsOpen(false)}
-                  className="h-8 w-8"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="h-8 w-8"
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </div>
           </CardHeader>
 
           {/* Content */}
           <CardContent className="flex-1 overflow-hidden p-0">
-            {showHistory ? (
-              renderHistoryView()
-            ) : isLoadingHistory ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : (
-              <ScrollArea className="h-full p-4" ref={scrollRef}>
-                {messages.length === 0 ? (
-                  <div className="space-y-4">
-                    <div className="text-center py-4">
-                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                        <Bot className="w-8 h-8 text-primary" />
-                      </div>
-                      <h3 className="font-semibold mb-1">Hello! I'm MediAI</h3>
-                      <p className="text-sm text-muted-foreground">
-                        I can check symptoms, book appointments, and answer health questions.
-                      </p>
+            <ScrollArea className="h-full p-4" ref={scrollRef}>
+              {messages.length === 0 ? (
+                <div className="space-y-4">
+                  <div className="text-center py-4">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                      <Bot className="w-8 h-8 text-primary" />
                     </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                        Try asking
-                      </p>
-                      {suggestedQuestions.map((q, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSuggestedQuestion(q.text)}
-                          className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left"
-                        >
-                          <q.icon className="w-4 h-4 text-primary flex-shrink-0" />
-                          <span className="text-sm">{q.label}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <h3 className="font-semibold mb-1">Hello! I'm MediAI</h3>
+                    <p className="text-sm text-muted-foreground">
+                      I can check symptoms, book appointments, and answer health questions.
+                    </p>
                   </div>
-                ) : (
-                  <>
-                    {messages.map(renderMessage)}
-                    {isLoading && messages[messages.length - 1]?.role === "user" && (
-                      <div className="flex gap-3 mb-4">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center">
-                          <Bot className="w-4 h-4 text-accent-foreground" />
-                        </div>
-                        <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2">
-                          <div className="flex gap-1">
-                            <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                      Try asking
+                    </p>
+                    {suggestedQuestions.map((q, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSuggestedQuestion(q.text)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left"
+                      >
+                        <q.icon className="w-4 h-4 text-primary flex-shrink-0" />
+                        <span className="text-sm">{q.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {messages.map(renderMessage)}
+                  {isLoading && messages[messages.length - 1]?.role === "user" && (
+                    <div className="flex gap-3 mb-4">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-accent-foreground" />
+                      </div>
+                      <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                         </div>
                       </div>
-                    )}
-                  </>
-                )}
-              </ScrollArea>
-            )}
+                    </div>
+                  )}
+                </>
+              )}
+            </ScrollArea>
           </CardContent>
 
           {/* Input */}
-          {!showHistory && (
-            <div className="flex-shrink-0 p-4 border-t">
-              {/* Language selector */}
-              {voiceSupported && (
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-muted-foreground">Voice Language:</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 gap-2 text-xs">
-                        <Languages className="w-3 h-3" />
-                        {SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label || "Select"}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      {SUPPORTED_LANGUAGES.map((lang) => (
-                        <DropdownMenuItem
-                          key={lang.code}
-                          onClick={() => setVoiceLanguage(lang.code)}
-                          className={cn(
-                            "gap-2",
-                            voiceLanguage === lang.code && "bg-accent"
-                          )}
-                        >
-                          <span>{lang.flag}</span>
-                          <span>{lang.label}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
-              
-              <form onSubmit={handleSubmit} className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Input
-                    ref={inputRef}
-                    value={isListening ? input + interimTranscript : input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder={isListening ? `Listening in ${SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label}...` : "Type or speak..."}
-                    disabled={isLoading}
-                    className={cn("pr-10", isListening && "border-primary")}
-                  />
-                  {voiceSupported && (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className={cn(
-                        "absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7",
-                        isListening && "text-primary animate-pulse"
-                      )}
-                      onClick={toggleListening}
-                      title={isListening ? "Stop listening" : `Speak in ${SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label}`}
-                    >
-                      {isListening ? (
-                        <MicOff className="w-4 h-4" />
-                      ) : (
-                        <Mic className="w-4 h-4" />
-                      )}
+          <div className="flex-shrink-0 p-4 border-t">
+            {/* Language selector */}
+            {voiceSupported && (
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-muted-foreground">Voice Language:</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 gap-2 text-xs">
+                      <Languages className="w-3 h-3" />
+                      {SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label || "Select"}
                     </Button>
-                  )}
-                </div>
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!input.trim() || isLoading}
-                  variant="hero"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </form>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                {user 
-                  ? "Conversations are saved automatically" 
-                  : "Sign in to save chat history"}
-              </p>
-            </div>
-          )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <DropdownMenuItem
+                        key={lang.code}
+                        onClick={() => setVoiceLanguage(lang.code)}
+                        className={cn(
+                          "gap-2",
+                          voiceLanguage === lang.code && "bg-accent"
+                        )}
+                      >
+                        <span>{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+            
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  ref={inputRef}
+                  value={isListening ? input + interimTranscript : input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={isListening ? `Listening in ${SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label}...` : "Type or speak..."}
+                  disabled={isLoading}
+                  className={cn("pr-10", isListening && "border-primary")}
+                />
+                {voiceSupported && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className={cn(
+                      "absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7",
+                      isListening && "text-primary animate-pulse"
+                    )}
+                    onClick={toggleListening}
+                    title={isListening ? "Stop listening" : `Speak in ${SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label}`}
+                  >
+                    {isListening ? (
+                      <MicOff className="w-4 h-4" />
+                    ) : (
+                      <Mic className="w-4 h-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim() || isLoading}
+                variant="hero"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </form>
+          </div>
         </Card>
       </div>
     </>
