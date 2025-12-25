@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Stethoscope } from "lucide-react";
+import { Calendar, Stethoscope } from "lucide-react";
+import { DoctorAvailabilityCalendar } from "./DoctorAvailabilityCalendar";
 
 interface Doctor {
   id: string;
@@ -39,23 +40,6 @@ interface BookAppointmentDialogProps {
   trigger?: React.ReactNode;
   preselectedDoctorId?: string;
 }
-
-const timeSlots = [
-  "09:00 AM",
-  "09:30 AM",
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "12:00 PM",
-  "02:00 PM",
-  "02:30 PM",
-  "03:00 PM",
-  "03:30 PM",
-  "04:00 PM",
-  "04:30 PM",
-  "05:00 PM",
-];
 
 export function BookAppointmentDialog({
   open: controlledOpen,
@@ -243,39 +227,19 @@ export function BookAppointmentDialog({
             </Select>
           </div>
 
-          {/* Date Selection */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Select Date
-            </Label>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              min={today}
+          {/* Availability Calendar */}
+          {selectedDoctor && (
+            <DoctorAvailabilityCalendar
+              doctorId={selectedDoctor}
+              doctorName={doctors.find((d) => d.id === selectedDoctor)?.name}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              onSlotSelect={(date, time) => {
+                setSelectedDate(date);
+                setSelectedTime(time);
+              }}
             />
-          </div>
-
-          {/* Time Selection */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Select Time
-            </Label>
-            <Select value={selectedTime} onValueChange={setSelectedTime}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a time slot" />
-              </SelectTrigger>
-              <SelectContent>
-                {timeSlots.map((slot) => (
-                  <SelectItem key={slot} value={slot}>
-                    {slot}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          )}
 
           {/* Symptoms */}
           <div className="space-y-2">
@@ -284,7 +248,7 @@ export function BookAppointmentDialog({
               placeholder="Describe your symptoms..."
               value={symptoms}
               onChange={(e) => setSymptoms(e.target.value)}
-              rows={3}
+              rows={2}
             />
           </div>
 
@@ -303,7 +267,11 @@ export function BookAppointmentDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="hero" onClick={handleSubmit} disabled={loading}>
+          <Button 
+            variant="hero" 
+            onClick={handleSubmit} 
+            disabled={loading || !selectedDate || !selectedTime}
+          >
             {loading ? "Booking..." : "Book Appointment"}
           </Button>
         </DialogFooter>
