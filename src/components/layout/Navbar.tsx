@@ -122,6 +122,12 @@ export function Navbar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem className="gap-2" asChild>
+                    <Link to="/my-profile">
+                      <User className="w-4 h-4" />
+                      My Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2" asChild>
                     <Link to="/api-keys">
                       <Key className="w-4 h-4" />
                       API Keys

@@ -32,9 +32,10 @@ interface Doctor {
 }
 
 interface BookAppointmentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
+  trigger?: React.ReactNode;
 }
 
 const timeSlots = [
@@ -55,10 +56,15 @@ const timeSlots = [
 ];
 
 export function BookAppointmentDialog({
-  open,
-  onOpenChange,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
   onSuccess,
-}: BookAppointmentDialogProps) {
+  trigger,
+}: BookAppointmentDialogProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const onOpenChange = controlledOnOpenChange || setInternalOpen;
   const { user } = useAuth();
   const { toast } = useToast();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -178,8 +184,20 @@ export function BookAppointmentDialog({
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
 
+  const defaultTrigger = (
+    <Button variant="hero" className="gap-2">
+      <Calendar className="w-4 h-4" />
+      Book Appointment
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {(trigger !== undefined ? trigger : defaultTrigger) && (
+        <div onClick={() => onOpenChange(true)} className="cursor-pointer">
+          {trigger !== undefined ? trigger : defaultTrigger}
+        </div>
+      )}
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
