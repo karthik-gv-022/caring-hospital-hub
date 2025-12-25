@@ -29,11 +29,23 @@ declare global {
   }
 }
 
+// Supported languages
+export const SUPPORTED_LANGUAGES = [
+  { code: "en-IN", label: "English (India)", flag: "🇮🇳" },
+  { code: "ta-IN", label: "தமிழ் (Tamil)", flag: "🇮🇳" },
+  { code: "te-IN", label: "తెలుగు (Telugu)", flag: "🇮🇳" },
+  { code: "kn-IN", label: "ಕನ್ನಡ (Kannada)", flag: "🇮🇳" },
+  { code: "ml-IN", label: "മലയാളം (Malayalam)", flag: "🇮🇳" },
+  { code: "en-US", label: "English (US)", flag: "🇺🇸" },
+] as const;
+
+export type LanguageCode = typeof SUPPORTED_LANGUAGES[number]["code"];
+
 interface UseVoiceInputOptions {
   onResult?: (transcript: string) => void;
   onError?: (error: string) => void;
   continuous?: boolean;
-  language?: string;
+  language?: LanguageCode;
 }
 
 export function useVoiceInput(options: UseVoiceInputOptions = {}) {
@@ -41,26 +53,27 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     onResult,
     onError,
     continuous = false,
-    language = "en-US",
+    language = "en-IN",
   } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
+  const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(language);
   const recognitionRef = useRef<SpeechRecognitionInterface | null>(null);
 
   useEffect(() => {
     // Check for browser support
-    const SpeechRecognition =
+    const SpeechRecognitionClass =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (SpeechRecognition) {
+    if (SpeechRecognitionClass) {
       setIsSupported(true);
-      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current = new SpeechRecognitionClass();
       recognitionRef.current.continuous = continuous;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = language;
+      recognitionRef.current.lang = currentLanguage;
 
       recognitionRef.current.onresult = (event) => {
         let interim = "";
@@ -117,7 +130,15 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         recognitionRef.current.abort();
       }
     };
-  }, [continuous, language, onResult, onError]);
+  }, [continuous, currentLanguage, onResult, onError]);
+
+  // Update language
+  const changeLanguage = useCallback((newLanguage: LanguageCode) => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    }
+    setCurrentLanguage(newLanguage);
+  }, [isListening]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) return;
@@ -157,9 +178,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     isSupported,
     transcript,
     interimTranscript,
+    currentLanguage,
     startListening,
     stopListening,
     toggleListening,
+    changeLanguage,
     resetTranscript: () => setTranscript(""),
   };
 }
