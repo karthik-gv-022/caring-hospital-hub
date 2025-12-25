@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Activity,
   Users,
@@ -13,6 +14,8 @@ import {
   LogIn,
   LogOut,
   User,
+  Key,
+  LayoutDashboard,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,8 +35,25 @@ const navLinks = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDoctor, setIsDoctor] = useState(false);
   const location = useLocation();
   const { user, signOut, loading } = useAuth();
+
+  useEffect(() => {
+    const checkDoctorRole = async () => {
+      if (!user) {
+        setIsDoctor(false);
+        return;
+      }
+      const { data } = await supabase
+        .from("doctors")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setIsDoctor(!!data);
+    };
+    checkDoctorRole();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -101,10 +121,20 @@ export function Navbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem className="gap-2">
-                    <User className="w-4 h-4" />
-                    Profile
+                  <DropdownMenuItem className="gap-2" asChild>
+                    <Link to="/api-keys">
+                      <Key className="w-4 h-4" />
+                      API Keys
+                    </Link>
                   </DropdownMenuItem>
+                  {isDoctor && (
+                    <DropdownMenuItem className="gap-2" asChild>
+                      <Link to="/doctor-dashboard">
+                        <LayoutDashboard className="w-4 h-4" />
+                        Doctor Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="gap-2 text-destructive"

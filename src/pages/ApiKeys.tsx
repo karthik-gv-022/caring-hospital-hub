@@ -80,7 +80,7 @@ const ApiKeys = () => {
         variant: "destructive",
       });
     } else {
-      setApiKeys((data as ApiKey[]) || []);
+      setApiKeys((data as unknown as ApiKey[]) || []);
     }
     setLoading(false);
   };
