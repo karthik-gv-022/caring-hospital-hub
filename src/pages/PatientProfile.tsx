@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Clock, User, Stethoscope, Activity, AlertCircle, CheckCircle2, Timer } from "lucide-react";
+import { Calendar, Clock, User, Stethoscope, Activity, AlertCircle, CheckCircle2, Timer, History } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { AppointmentHistory } from "@/components/patients/AppointmentHistory";
 
 interface Appointment {
   id: string;
@@ -238,8 +239,12 @@ const PatientProfile = () => {
         </div>
 
         {/* Tabs for Appointments and Queue */}
-        <Tabs defaultValue="appointments" className="space-y-6">
-          <TabsList>
+        <Tabs defaultValue="history" className="space-y-6">
+          <TabsList className="flex-wrap h-auto gap-1">
+            <TabsTrigger value="history" className="gap-2">
+              <History className="w-4 h-4" />
+              Visit History
+            </TabsTrigger>
             <TabsTrigger value="appointments" className="gap-2">
               <Calendar className="w-4 h-4" />
               Appointments
@@ -253,6 +258,10 @@ const PatientProfile = () => {
               Profile Info
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="history">
+            <AppointmentHistory patientId={patient.id} />
+          </TabsContent>
 
           <TabsContent value="appointments" className="space-y-4">
             {appointments.length === 0 ? (
