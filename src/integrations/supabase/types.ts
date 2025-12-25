@@ -14,16 +14,255 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          created_at: string | null
+          doctor_id: string | null
+          id: string
+          notes: string | null
+          patient_id: string | null
+          scheduled_date: string
+          scheduled_time: string
+          status: string | null
+          symptoms: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          scheduled_date: string
+          scheduled_time: string
+          status?: string | null
+          symptoms?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          scheduled_date?: string
+          scheduled_time?: string
+          status?: string | null
+          symptoms?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctors: {
+        Row: {
+          available_slots: number | null
+          created_at: string | null
+          id: string
+          is_available: boolean | null
+          name: string
+          next_available: string | null
+          rating: number | null
+          specialty: string
+          user_id: string | null
+        }
+        Insert: {
+          available_slots?: number | null
+          created_at?: string | null
+          id?: string
+          is_available?: boolean | null
+          name: string
+          next_available?: string | null
+          rating?: number | null
+          specialty: string
+          user_id?: string | null
+        }
+        Update: {
+          available_slots?: number | null
+          created_at?: string | null
+          id?: string
+          is_available?: boolean | null
+          name?: string
+          next_available?: string | null
+          rating?: number | null
+          specialty?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          email: string | null
+          emergency_contact: string | null
+          first_name: string
+          gender: string | null
+          id: string
+          last_name: string
+          phone: string | null
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          first_name: string
+          gender?: string | null
+          id?: string
+          last_name: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          first_name?: string
+          gender?: string | null
+          id?: string
+          last_name?: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      queue_tokens: {
+        Row: {
+          created_at: string | null
+          department: string
+          doctor_id: string | null
+          estimated_wait_minutes: number | null
+          id: string
+          patient_id: string | null
+          position: number | null
+          status: string | null
+          token_number: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          doctor_id?: string | null
+          estimated_wait_minutes?: number | null
+          id?: string
+          patient_id?: string | null
+          position?: number | null
+          status?: string | null
+          token_number: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          doctor_id?: string | null
+          estimated_wait_minutes?: number | null
+          id?: string
+          patient_id?: string | null
+          position?: number | null
+          status?: string | null
+          token_number?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_tokens_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_tokens_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "doctor" | "patient"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +389,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "doctor", "patient"],
+    },
   },
 } as const
