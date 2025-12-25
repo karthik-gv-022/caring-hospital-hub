@@ -3,8 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useChatbot, ChatMessage } from "@/hooks/useChatbot";
-import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { useVoiceInput, SUPPORTED_LANGUAGES, LanguageCode } from "@/hooks/useVoiceInput";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   MessageCircle, 
@@ -21,7 +27,8 @@ import {
   MicOff,
   Plus,
   History,
-  ChevronLeft
+  ChevronLeft,
+  Languages
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -42,6 +49,7 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
+  const [voiceLanguage, setVoiceLanguage] = useState<LanguageCode>("en-IN");
   
   const { 
     messages, 
@@ -62,8 +70,11 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
     isListening, 
     isSupported: voiceSupported, 
     interimTranscript,
-    toggleListening 
+    currentLanguage,
+    toggleListening,
+    changeLanguage 
   } = useVoiceInput({
+    language: voiceLanguage,
     onResult: (transcript) => {
       setInput((prev) => prev + transcript + " ");
     },
@@ -71,6 +82,11 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
       console.error("Voice error:", error);
     },
   });
+
+  // Sync language changes
+  useEffect(() => {
+    changeLanguage(voiceLanguage);
+  }, [voiceLanguage, changeLanguage]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -330,13 +346,43 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
           {/* Input */}
           {!showHistory && (
             <div className="flex-shrink-0 p-4 border-t">
+              {/* Language selector */}
+              {voiceSupported && (
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-muted-foreground">Voice Language:</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 gap-2 text-xs">
+                        <Languages className="w-3 h-3" />
+                        {SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label || "Select"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <DropdownMenuItem
+                          key={lang.code}
+                          onClick={() => setVoiceLanguage(lang.code)}
+                          className={cn(
+                            "gap-2",
+                            voiceLanguage === lang.code && "bg-accent"
+                          )}
+                        >
+                          <span>{lang.flag}</span>
+                          <span>{lang.label}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} className="flex gap-2">
                 <div className="flex-1 relative">
                   <Input
                     ref={inputRef}
                     value={isListening ? input + interimTranscript : input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={isListening ? "Listening..." : "Type or speak..."}
+                    placeholder={isListening ? `Listening in ${SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label}...` : "Type or speak..."}
                     disabled={isLoading}
                     className={cn("pr-10", isListening && "border-primary")}
                   />
@@ -347,9 +393,10 @@ export function ChatbotWidget({ patientId }: ChatbotWidgetProps) {
                       variant="ghost"
                       className={cn(
                         "absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7",
-                        isListening && "text-primary"
+                        isListening && "text-primary animate-pulse"
                       )}
                       onClick={toggleListening}
+                      title={isListening ? "Stop listening" : `Speak in ${SUPPORTED_LANGUAGES.find(l => l.code === voiceLanguage)?.label}`}
                     >
                       {isListening ? (
                         <MicOff className="w-4 h-4" />
