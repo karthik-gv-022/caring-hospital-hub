@@ -6,6 +6,15 @@ export interface ChatMessage {
   id?: string;
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
+  error?: boolean;
+  actions?: ChatAction[];
+}
+
+export interface ChatAction {
+  label: string;
+  action: string;
+  data?: Record<string, unknown>;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/hospital-chatbot`;
@@ -16,8 +25,12 @@ export function useChatbot(patientId?: string) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const sendMessage = useCallback(async (input: string) => {
-    const userMsg: ChatMessage = { role: "user", content: input };
+  const sendMessage = useCallback(async (input: string, imageBase64?: string) => {
+    const userMsg: ChatMessage = { 
+      role: "user", 
+      content: input,
+      imageUrl: imageBase64
+    };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
@@ -25,14 +38,34 @@ export function useChatbot(patientId?: string) {
 
     const updateAssistant = (chunk: string) => {
       assistantContent += chunk;
+      
+      // Parse actions from content if present
+      let actions: ChatAction[] | undefined;
+      let displayContent = assistantContent;
+      
+      // Look for action markers in the content
+      const actionMatches = assistantContent.match(/\[ACTION:([^\]]+)\]/g);
+      if (actionMatches) {
+        actions = actionMatches.map(match => {
+          const actionStr = match.replace(/\[ACTION:|]/g, '');
+          const [label, action, ...dataParts] = actionStr.split('|');
+          return {
+            label: label.trim(),
+            action: action.trim(),
+            data: dataParts.length ? JSON.parse(dataParts.join('|')) : undefined
+          };
+        });
+        displayContent = assistantContent.replace(/\[ACTION:[^\]]+\]/g, '').trim();
+      }
+      
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === "assistant") {
           return prev.map((m, i) =>
-            i === prev.length - 1 ? { ...m, content: assistantContent } : m
+            i === prev.length - 1 ? { ...m, content: displayContent, actions } : m
           );
         }
-        return [...prev, { role: "assistant", content: assistantContent }];
+        return [...prev, { role: "assistant", content: displayContent, actions }];
       });
     };
 
@@ -44,9 +77,18 @@ export function useChatbot(patientId?: string) {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          messages: [...messages, userMsg],
+          messages: [...messages, userMsg].map(m => ({
+            role: m.role,
+            content: m.imageUrl 
+              ? [
+                  { type: "text", text: m.content },
+                  { type: "image_url", image_url: { url: m.imageUrl } }
+                ]
+              : m.content
+          })),
           patientId,
           userId: user?.id,
+          hasImage: !!imageBase64,
         }),
       });
 
@@ -117,12 +159,28 @@ export function useChatbot(patientId?: string) {
         description: error instanceof Error ? error.message : "Failed to send message",
         variant: "destructive",
       });
-      // Remove the user message if we failed
-      setMessages((prev) => prev.slice(0, -1));
+      // Mark the message as failed instead of removing
+      setMessages((prev) => 
+        prev.map((m, i) => 
+          i === prev.length - 1 && m.role === "user" 
+            ? { ...m, error: true } 
+            : m
+        )
+      );
     } finally {
       setIsLoading(false);
     }
   }, [messages, patientId, user, toast]);
+
+  const retryMessage = useCallback((messageIndex: number) => {
+    const msg = messages[messageIndex];
+    if (msg && msg.role === "user" && msg.error) {
+      // Remove the failed message
+      setMessages((prev) => prev.filter((_, i) => i !== messageIndex));
+      // Resend
+      sendMessage(msg.content, msg.imageUrl);
+    }
+  }, [messages, sendMessage]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -133,5 +191,6 @@ export function useChatbot(patientId?: string) {
     isLoading,
     sendMessage,
     clearMessages,
+    retryMessage,
   };
 }
