@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -36,6 +37,7 @@ interface BookAppointmentDialogProps {
   onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
   trigger?: React.ReactNode;
+  preselectedDoctorId?: string;
 }
 
 const timeSlots = [
@@ -60,6 +62,7 @@ export function BookAppointmentDialog({
   onOpenChange: controlledOnOpenChange,
   onSuccess,
   trigger,
+  preselectedDoctorId,
 }: BookAppointmentDialogProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   
@@ -71,11 +74,18 @@ export function BookAppointmentDialog({
   const [loading, setLoading] = useState(false);
   const [patientId, setPatientId] = useState<string | null>(null);
 
-  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState(preselectedDoctorId || "");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [symptoms, setSymptoms] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Update selected doctor when preselectedDoctorId changes
+  useEffect(() => {
+    if (preselectedDoctorId) {
+      setSelectedDoctor(preselectedDoctorId);
+    }
+  }, [preselectedDoctorId]);
 
   useEffect(() => {
     if (open) {
@@ -193,11 +203,9 @@ export function BookAppointmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {(trigger !== undefined ? trigger : defaultTrigger) && (
-        <div onClick={() => onOpenChange(true)} className="cursor-pointer">
-          {trigger !== undefined ? trigger : defaultTrigger}
-        </div>
-      )}
+      <DialogTrigger asChild>
+        {trigger !== undefined ? trigger : defaultTrigger}
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
