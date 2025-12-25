@@ -1,15 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { UserPlus, CheckCircle } from "lucide-react";
+import { UserPlus, CheckCircle, LogIn } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+}
 
 export function PatientRegistrationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,24 +39,88 @@ export function PatientRegistrationForm() {
     address: "",
     emergencyContact: "",
     symptoms: "",
-    department: "",
+    doctorId: "",
   });
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      const { data } = await supabase
+        .from("doctors")
+        .select("id, name, specialty")
+        .eq("is_available", true);
+      setDoctors(data || []);
+    };
+    fetchDoctors();
+  }, []);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to register as a patient.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Create patient record
+      const { data: patient, error: patientError } = await supabase
+        .from("patients")
+        .insert({
+          user_id: user.id,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email || user.email,
+          phone: formData.phone,
+          date_of_birth: formData.dateOfBirth || null,
+          gender: formData.gender || null,
+          address: formData.address || null,
+          emergency_contact: formData.emergencyContact || null,
+        })
+        .select()
+        .single();
+
+      if (patientError) throw patientError;
+
+      // Get next token number
+      const { count } = await supabase
+        .from("queue_tokens")
+        .select("*", { count: "exact", head: true });
+
+      const tokenNumber = `A${String((count || 0) + 1).padStart(3, "0")}`;
+
+      // Get doctor info for department
+      const selectedDoctor = doctors.find((d) => d.id === formData.doctorId);
+
+      // Create queue token
+      const { error: tokenError } = await supabase.from("queue_tokens").insert({
+        token_number: tokenNumber,
+        patient_id: patient.id,
+        doctor_id: formData.doctorId || null,
+        department: selectedDoctor?.specialty || "General",
+        status: "waiting",
+        estimated_wait_minutes: 30,
+        position: (count || 0) + 1,
+      });
+
+      if (tokenError) throw tokenError;
+
       toast({
         title: "Registration Successful!",
-        description: "Token #A006 has been assigned. Estimated wait time: 35 minutes.",
+        description: `Token ${tokenNumber} has been assigned. Estimated wait time: 30 minutes.`,
       });
+
+      // Reset form
       setFormData({
         firstName: "",
         lastName: "",
@@ -48,10 +131,36 @@ export function PatientRegistrationForm() {
         address: "",
         emergencyContact: "",
         symptoms: "",
-        department: "",
+        doctorId: "",
       });
-    }, 1500);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (!user) {
+    return (
+      <Card className="p-6 bg-gradient-card border-border/50">
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <LogIn className="w-12 h-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Sign In Required</h3>
+          <p className="text-muted-foreground mb-4">
+            Please sign in to register as a patient
+          </p>
+          <Button variant="hero" onClick={() => navigate("/auth")}>
+            Sign In
+          </Button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-6 bg-gradient-card border-border/50">
@@ -62,7 +171,7 @@ export function PatientRegistrationForm() {
         <div>
           <h3 className="font-semibold">Patient Registration</h3>
           <p className="text-sm text-muted-foreground">
-            Register a new patient and generate a queue token
+            Register and get a queue token
           </p>
         </div>
       </div>
@@ -70,7 +179,7 @@ export function PatientRegistrationForm() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="firstName">First Name</Label>
+            <Label htmlFor="firstName">First Name *</Label>
             <Input
               id="firstName"
               placeholder="John"
@@ -80,7 +189,7 @@ export function PatientRegistrationForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lastName">Last Name</Label>
+            <Label htmlFor="lastName">Last Name *</Label>
             <Input
               id="lastName"
               placeholder="Doe"
@@ -100,11 +209,10 @@ export function PatientRegistrationForm() {
               placeholder="john@example.com"
               value={formData.email}
               onChange={(e) => handleChange("email", e.target.value)}
-              required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
+            <Label htmlFor="phone">Phone Number *</Label>
             <Input
               id="phone"
               placeholder="+1 (555) 000-0000"
@@ -123,12 +231,14 @@ export function PatientRegistrationForm() {
               type="date"
               value={formData.dateOfBirth}
               onChange={(e) => handleChange("dateOfBirth", e.target.value)}
-              required
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="gender">Gender</Label>
-            <Select value={formData.gender} onValueChange={(value) => handleChange("gender", value)}>
+            <Select
+              value={formData.gender}
+              onValueChange={(value) => handleChange("gender", value)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
@@ -136,49 +246,31 @@ export function PatientRegistrationForm() {
                 <SelectItem value="male">Male</SelectItem>
                 <SelectItem value="female">Female</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
-                <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                <SelectItem value="prefer-not-to-say">
+                  Prefer not to say
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
-          <Input
-            id="address"
-            placeholder="123 Main Street, City, State, ZIP"
-            value={formData.address}
-            onChange={(e) => handleChange("address", e.target.value)}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="emergencyContact">Emergency Contact</Label>
-            <Input
-              id="emergencyContact"
-              placeholder="+1 (555) 111-2222"
-              value={formData.emergencyContact}
-              onChange={(e) => handleChange("emergencyContact", e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="department">Department</Label>
-            <Select value={formData.department} onValueChange={(value) => handleChange("department", value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="general">General Medicine</SelectItem>
-                <SelectItem value="cardiology">Cardiology</SelectItem>
-                <SelectItem value="neurology">Neurology</SelectItem>
-                <SelectItem value="orthopedics">Orthopedics</SelectItem>
-                <SelectItem value="pediatrics">Pediatrics</SelectItem>
-                <SelectItem value="dermatology">Dermatology</SelectItem>
-                <SelectItem value="ophthalmology">Ophthalmology</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Label htmlFor="doctorId">Preferred Doctor</Label>
+          <Select
+            value={formData.doctorId}
+            onValueChange={(value) => handleChange("doctorId", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a doctor (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              {doctors.map((doctor) => (
+                <SelectItem key={doctor.id} value={doctor.id}>
+                  {doctor.name} - {doctor.specialty}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
@@ -192,13 +284,19 @@ export function PatientRegistrationForm() {
           />
         </div>
 
-        <Button type="submit" variant="hero" size="lg" className="w-full gap-2" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          variant="hero"
+          size="lg"
+          className="w-full gap-2"
+          disabled={isSubmitting}
+        >
           {isSubmitting ? (
             <>Processing...</>
           ) : (
             <>
               <CheckCircle className="w-5 h-5" />
-              Register Patient & Generate Token
+              Register & Get Token
             </>
           )}
         </Button>

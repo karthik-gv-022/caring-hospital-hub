@@ -1,22 +1,28 @@
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { DoctorCard } from "@/components/dashboard/DoctorCard";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Stethoscope, Search, Filter, Plus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Stethoscope, Search, Plus, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-const allDoctors = [
-  { name: "Dr. Sarah Chen", specialty: "Cardiology", rating: 4.9, availableSlots: 5, nextAvailable: "10:30 AM", isAvailable: true },
-  { name: "Dr. Michael Park", specialty: "Neurology", rating: 4.8, availableSlots: 3, nextAvailable: "11:00 AM", isAvailable: true },
-  { name: "Dr. Lisa Wang", specialty: "Pediatrics", rating: 4.9, availableSlots: 7, nextAvailable: "10:15 AM", isAvailable: true },
-  { name: "Dr. David Kim", specialty: "Orthopedics", rating: 4.7, availableSlots: 2, nextAvailable: "2:00 PM", isAvailable: false },
-  { name: "Dr. Jennifer Lee", specialty: "Dermatology", rating: 4.8, availableSlots: 4, nextAvailable: "11:30 AM", isAvailable: true },
-  { name: "Dr. Robert Taylor", specialty: "Internal Medicine", rating: 4.6, availableSlots: 6, nextAvailable: "10:00 AM", isAvailable: true },
-  { name: "Dr. Amanda White", specialty: "Ophthalmology", rating: 4.9, availableSlots: 3, nextAvailable: "1:00 PM", isAvailable: true },
-  { name: "Dr. Thomas Brown", specialty: "General Surgery", rating: 4.7, availableSlots: 1, nextAvailable: "3:30 PM", isAvailable: false },
-];
+interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+  rating: number;
+  available_slots: number;
+  next_available: string;
+  is_available: boolean;
+}
 
 const specialties = [
   "All Specialties",
@@ -28,15 +34,56 @@ const specialties = [
   "Internal Medicine",
   "Ophthalmology",
   "General Surgery",
+  "Pulmonology",
+  "Gastroenterology",
 ];
 
 const Doctors = () => {
-  const availableCount = allDoctors.filter(d => d.isAvailable).length;
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSpecialty, setSelectedSpecialty] = useState("All Specialties");
+  const [selectedAvailability, setSelectedAvailability] = useState("all");
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("*")
+        .order("rating", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching doctors:", error);
+      } else {
+        setDoctors(data || []);
+      }
+      setLoading(false);
+    };
+
+    fetchDoctors();
+  }, []);
+
+  const filteredDoctors = doctors.filter((doctor) => {
+    const matchesSearch = doctor.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesSpecialty =
+      selectedSpecialty === "All Specialties" ||
+      doctor.specialty === selectedSpecialty;
+    const matchesAvailability =
+      selectedAvailability === "all" ||
+      (selectedAvailability === "available" && doctor.is_available) ||
+      (selectedAvailability === "busy" && !doctor.is_available);
+
+    return matchesSearch && matchesSpecialty && matchesAvailability;
+  });
+
+  const availableCount = doctors.filter((d) => d.is_available).length;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="pt-20 pb-12">
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
@@ -48,11 +95,11 @@ const Doctors = () => {
               <div>
                 <h1 className="text-3xl font-bold">Doctors</h1>
                 <p className="text-muted-foreground">
-                  {availableCount} of {allDoctors.length} doctors available
+                  {availableCount} of {doctors.length} doctors available
                 </p>
               </div>
             </div>
-            
+
             <Button variant="hero" className="gap-2">
               <Plus className="w-4 h-4" />
               Add Doctor
@@ -64,9 +111,17 @@ const Doctors = () => {
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search doctors by name..." className="pl-9" />
+                <Input
+                  placeholder="Search doctors by name..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-              <Select defaultValue="All Specialties">
+              <Select
+                value={selectedSpecialty}
+                onValueChange={setSelectedSpecialty}
+              >
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Specialty" />
                 </SelectTrigger>
@@ -78,7 +133,10 @@ const Doctors = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
+              <Select
+                value={selectedAvailability}
+                onValueChange={setSelectedAvailability}
+              >
                 <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Availability" />
                 </SelectTrigger>
@@ -92,15 +150,21 @@ const Doctors = () => {
           </Card>
 
           {/* Doctor Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {allDoctors.map((doctor, index) => (
-              <DoctorCard
-                key={doctor.name}
-                {...doctor}
-                delay={index * 50}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : filteredDoctors.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No doctors found matching your criteria</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredDoctors.map((doctor, index) => (
+                <DoctorCard key={doctor.id} doctor={doctor} delay={index * 50} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
