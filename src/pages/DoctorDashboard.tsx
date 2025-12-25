@@ -17,8 +17,11 @@ import {
   ArrowRight,
   Play,
   SkipForward,
+  FileText,
+  Pill,
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import { CreatePrescriptionDialog } from "@/components/doctor/CreatePrescriptionDialog";
 
 interface QueueToken {
   id: string;
@@ -41,9 +44,10 @@ interface Appointment {
   scheduled_date: string;
   scheduled_time: string;
   status: string;
-  symptoms: string;
-  notes: string;
+  symptoms: string | null;
+  notes: string | null;
   patients?: {
+    id: string;
     first_name: string;
     last_name: string;
     phone: string;
@@ -65,6 +69,8 @@ const DoctorDashboard = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentToken, setCurrentToken] = useState<QueueToken | null>(null);
+  const [prescriptionOpen, setPrescriptionOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -133,7 +139,7 @@ const DoctorDashboard = () => {
       .from("appointments")
       .select(`
         *,
-        patients (first_name, last_name, phone)
+        patients (id, first_name, last_name, phone)
       `)
       .eq("doctor_id", doctorId)
       .eq("scheduled_date", today)
@@ -589,14 +595,41 @@ const DoctorDashboard = () => {
                               </>
                             )}
                             {apt.status === "confirmed" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedAppointment(apt);
+                                    setPrescriptionOpen(true);
+                                  }}
+                                  title="Write Prescription"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="hero"
+                                  size="sm"
+                                  onClick={() =>
+                                    updateAppointmentStatus(apt.id, "completed")
+                                  }
+                                >
+                                  Complete
+                                </Button>
+                              </>
+                            )}
+                            {apt.status === "completed" && (
                               <Button
-                                variant="hero"
+                                variant="outline"
                                 size="sm"
-                                onClick={() =>
-                                  updateAppointmentStatus(apt.id, "completed")
-                                }
+                                onClick={() => {
+                                  setSelectedAppointment(apt);
+                                  setPrescriptionOpen(true);
+                                }}
+                                title="Write Prescription"
                               >
-                                Complete
+                                <Pill className="w-4 h-4 mr-1" />
+                                Prescribe
                               </Button>
                             )}
                           </div>
@@ -610,6 +643,16 @@ const DoctorDashboard = () => {
           </Card>
         </div>
       </main>
+
+      {/* Prescription Dialog */}
+      {doctorProfile && (
+        <CreatePrescriptionDialog
+          open={prescriptionOpen}
+          onOpenChange={setPrescriptionOpen}
+          doctorId={doctorProfile.id}
+          appointment={selectedAppointment}
+        />
+      )}
     </div>
   );
 };
