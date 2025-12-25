@@ -3,10 +3,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Sparkles, Stethoscope, Clock, ArrowRight } from "lucide-react";
+import { Brain, Sparkles, Stethoscope, Clock, ArrowRight, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface Recommendation {
-  doctor: string;
+  doctorName: string;
   specialty: string;
   matchScore: number;
   reason: string;
@@ -17,39 +19,48 @@ export function AIRecommendation() {
   const [symptoms, setSymptoms] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!symptoms.trim()) return;
     
     setIsAnalyzing(true);
-    
-    // Simulate AI analysis
-    setTimeout(() => {
-      setRecommendations([
-        {
-          doctor: "Dr. Sarah Chen",
-          specialty: "Cardiology",
-          matchScore: 95,
-          reason: "Specialist in symptoms related to chest discomfort and heart conditions",
-          waitTime: "~15 min",
-        },
-        {
-          doctor: "Dr. Michael Park",
-          specialty: "Internal Medicine",
-          matchScore: 82,
-          reason: "General practitioner with expertise in diagnostic evaluations",
-          waitTime: "~25 min",
-        },
-        {
-          doctor: "Dr. Lisa Wang",
-          specialty: "Pulmonology",
-          matchScore: 78,
-          reason: "Specialist in respiratory conditions if breathing-related",
-          waitTime: "~30 min",
-        },
-      ]);
+    setError(null);
+    setRecommendations([]);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('analyze-symptoms', {
+        body: { symptoms: symptoms.trim() }
+      });
+
+      if (fnError) {
+        console.error("Function error:", fnError);
+        throw new Error(fnError.message || "Failed to analyze symptoms");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      if (data?.recommendations) {
+        setRecommendations(data.recommendations);
+        toast({
+          title: "Analysis Complete",
+          description: `Found ${data.recommendations.length} recommended specialists for your symptoms.`,
+        });
+      }
+    } catch (err) {
+      console.error("Error analyzing symptoms:", err);
+      const message = err instanceof Error ? err.message : "Failed to analyze symptoms. Please try again.";
+      setError(message);
+      toast({
+        title: "Analysis Failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
       setIsAnalyzing(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -70,7 +81,7 @@ export function AIRecommendation() {
 
       <div className="space-y-4">
         <Textarea
-          placeholder="Describe your symptoms... (e.g., chest pain, shortness of breath, fatigue)"
+          placeholder="Describe your symptoms... (e.g., chest pain, shortness of breath, fatigue, headache, skin rash)"
           value={symptoms}
           onChange={(e) => setSymptoms(e.target.value)}
           className="min-h-[100px] resize-none bg-background/50 border-border/50 focus:border-primary/50"
@@ -85,7 +96,7 @@ export function AIRecommendation() {
           {isAnalyzing ? (
             <>
               <Sparkles className="w-4 h-4 animate-spin" />
-              Analyzing Symptoms...
+              Analyzing with AI...
             </>
           ) : (
             <>
@@ -94,11 +105,18 @@ export function AIRecommendation() {
             </>
           )}
         </Button>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
       </div>
 
       {recommendations.length > 0 && (
         <div className="mt-6 space-y-3">
-          <h4 className="text-sm font-medium text-muted-foreground">Recommended Doctors</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">AI-Recommended Doctors</h4>
           {recommendations.map((rec, index) => (
             <div 
               key={index}
@@ -109,7 +127,7 @@ export function AIRecommendation() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Stethoscope className="w-4 h-4 text-primary" />
-                    <span className="font-medium">{rec.doctor}</span>
+                    <span className="font-medium">{rec.doctorName}</span>
                     <Badge variant="secondary" className="text-xs">
                       {rec.specialty}
                     </Badge>
