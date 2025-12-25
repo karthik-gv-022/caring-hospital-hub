@@ -166,7 +166,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, patientId, userId } = await req.json();
+    const { messages, patientId, userId, hasImage } = await req.json();
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -240,14 +240,21 @@ serve(async (req) => {
    - Confirm the date and time they prefer
    - Use get_available_slots to check availability if needed
    - After booking, confirm the details with the patient
+   - After successful booking, include: [ACTION:View Appointments|book_appointment]
 
-3. **MEDICAL Q&A**: Answer general health questions about:
+3. **MEDICAL IMAGE ANALYSIS**: When patients upload medical images (X-rays, reports, prescriptions, etc.):
+   - Describe what you observe in the image
+   - Provide general observations (never diagnose)
+   - Recommend appropriate specialist if needed
+   - Always remind them to consult a doctor for proper diagnosis
+
+4. **MEDICAL Q&A**: Answer general health questions about:
    - Common conditions and symptoms
    - Preventive care and wellness tips
    - Medication information (general, not prescriptive)
    - Hospital services and facilities
 
-4. **QUEUE STATUS**: When asked about queue or wait times:
+5. **QUEUE STATUS**: When asked about queue or wait times:
    - Provide their current queue position if available
    - Estimate wait times
    - Suggest ways to pass time
@@ -261,13 +268,19 @@ BOOKING WORKFLOW:
 4. Confirm and book using book_appointment
 5. Provide confirmation with all details
 
+QUICK ACTIONS (include these tags when appropriate):
+- After booking success: [ACTION:View Appointments|book_appointment]
+- When recommending emergency: [ACTION:Call Emergency|emergency]
+- When suggesting queue check: [ACTION:Check Queue|view_queue]
+
 IMPORTANT GUIDELINES:
 - Always be empathetic and professional
 - Never provide specific medical diagnoses
 - Always recommend seeing a doctor for serious symptoms
-- If symptoms sound severe (chest pain, difficulty breathing, severe bleeding), advise immediate emergency care
+- If symptoms sound severe (chest pain, difficulty breathing, severe bleeding), advise immediate emergency care and include [ACTION:Call Emergency (108)|emergency]
 - Be concise but thorough
 - Use the doctor IDs from context when booking
+- When analyzing images, be descriptive but never diagnostic
 - ${patientId ? "Patient is registered and can book appointments." : "Patient is NOT registered. They need to register before booking appointments."}`;
 
     // First API call with tools
