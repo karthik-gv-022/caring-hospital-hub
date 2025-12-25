@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star, Clock, Calendar, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 
 interface Doctor {
   id: string;
@@ -19,10 +20,9 @@ interface Doctor {
 interface DoctorCardProps {
   doctor: Doctor;
   delay?: number;
-  onBook?: (doctor: Doctor) => void;
 }
 
-export function DoctorCard({ doctor, delay = 0, onBook }: DoctorCardProps) {
+export function DoctorCard({ doctor, delay = 0 }: DoctorCardProps) {
   const initials = doctor.name
     .split(" ")
     .map((n) => n[0])
@@ -75,14 +75,18 @@ export function DoctorCard({ doctor, delay = 0, onBook }: DoctorCardProps) {
         </div>
       </div>
 
-      <Button
-        variant="outline"
-        className="w-full mt-4"
-        onClick={() => onBook?.(doctor)}
-        disabled={!doctor.is_available}
-      >
-        Book Appointment
-      </Button>
+      <BookAppointmentDialog 
+        preselectedDoctorId={doctor.id}
+        trigger={
+          <Button
+            variant="outline"
+            className="w-full mt-4"
+            disabled={!doctor.is_available}
+          >
+            Book Appointment
+          </Button>
+        }
+      />
     </Card>
   );
 }
