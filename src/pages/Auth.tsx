@@ -27,11 +27,13 @@ const signUpSchema = z.object({
 });
 
 type UserRole = "patient" | "doctor";
+type ViewMode = "login" | "signup" | "forgot-password";
 
 export default function Auth() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("login");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>("patient");
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -40,8 +42,11 @@ export default function Auth() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, resetPassword, user } = useAuth();
   const navigate = useNavigate();
+
+  const isSignUp = viewMode === "signup";
+  const isForgotPassword = viewMode === "forgot-password";
 
   // Redirect based on role after login
   useEffect(() => {
@@ -68,6 +73,44 @@ export default function Auth() {
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrors({});
+
+    const emailResult = z.string().email("Please enter a valid email address").safeParse(formData.email);
+    if (!emailResult.success) {
+      setErrors({ email: emailResult.error.errors[0].message });
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await resetPassword(formData.email);
+      if (error) {
+        toast({
+          title: "Failed to send reset email",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setResetEmailSent(true);
+        toast({
+          title: "Reset email sent!",
+          description: "Check your inbox for the password reset link.",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,145 +239,238 @@ export default function Auth() {
             </div>
           </Link>
           <h1 className="text-2xl font-bold text-center">
-            {isSignUp ? "Create an Account" : "Welcome Back"}
+            {isForgotPassword 
+              ? "Reset Password" 
+              : isSignUp 
+                ? "Create an Account" 
+                : "Welcome Back"}
           </h1>
           <p className="text-muted-foreground text-center mt-2">
-            {isSignUp
-              ? "Join MediAI Hospital System"
-              : "Sign in to access your dashboard"}
+            {isForgotPassword
+              ? "Enter your email to receive a reset link"
+              : isSignUp
+                ? "Join MediAI Hospital System"
+                : "Sign in to access your dashboard"}
           </p>
         </div>
 
-        <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)} className="mb-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="patient" className="gap-2">
-              <UserRound className="w-4 h-4" />
-              Patient
-            </TabsTrigger>
-            <TabsTrigger value="doctor" className="gap-2">
-              <Stethoscope className="w-4 h-4" />
-              Doctor
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="fullName"
-                  placeholder="John Doe"
-                  value={formData.fullName}
-                  onChange={(e) => handleChange("fullName", e.target.value)}
-                  className="pl-10"
-                />
+        {isForgotPassword ? (
+          resetEmailSent ? (
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto">
+                <Mail className="w-8 h-8 text-success" />
               </div>
-              {errors.fullName && (
-                <p className="text-sm text-destructive">{errors.fullName}</p>
-              )}
+              <h2 className="text-xl font-semibold">Check your email</h2>
+              <p className="text-muted-foreground">
+                We've sent a password reset link to <strong>{formData.email}</strong>
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setViewMode("login");
+                  setResetEmailSent(false);
+                }}
+                className="mt-4"
+              >
+                Back to Login
+              </Button>
             </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder={selectedRole === "doctor" ? "doctor@hospital.com" : "you@example.com"}
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password}</p>
-            )}
-          </div>
-
-          {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                  className="pl-10"
-                />
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
               </div>
-              {errors.confirmPassword && (
-                <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+
+              <Button
+                type="submit"
+                variant="hero"
+                size="lg"
+                className="w-full gap-2"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending reset link...
+                  </>
+                ) : (
+                  <>
+                    Send Reset Link
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("login")}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Back to Login
+                </button>
+              </div>
+            </form>
+          )
+        ) : (
+          <>
+            <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)} className="mb-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="patient" className="gap-2">
+                  <UserRound className="w-4 h-4" />
+                  Patient
+                </TabsTrigger>
+                <TabsTrigger value="doctor" className="gap-2">
+                  <Stethoscope className="w-4 h-4" />
+                  Doctor
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="fullName"
+                      placeholder="John Doe"
+                      value={formData.fullName}
+                      onChange={(e) => handleChange("fullName", e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive">{errors.fullName}</p>
+                  )}
+                </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder={selectedRole === "doctor" ? "doctor@hospital.com" : "you@example.com"}
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password">Password</Label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("forgot-password")}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
+
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              )}
+
+              {isSignUp && selectedRole === "doctor" && (
+                <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  Doctor accounts require administrator approval. Please contact the hospital administration to register as a doctor.
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                variant="hero"
+                size="lg"
+                className="w-full gap-2"
+                disabled={isLoading || (isSignUp && selectedRole === "doctor")}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {isSignUp ? "Creating account..." : "Signing in..."}
+                  </>
+                ) : (
+                  <>
+                    {isSignUp ? "Create Account" : `Sign In as ${selectedRole === "doctor" ? "Doctor" : "Patient"}`}
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode(isSignUp ? "login" : "signup");
+                  setErrors({});
+                }}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                {isSignUp
+                  ? "Already have an account? Sign in"
+                  : "Don't have an account? Sign up"}
+              </button>
             </div>
-          )}
-
-          {isSignUp && selectedRole === "doctor" && (
-            <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              Doctor accounts require administrator approval. Please contact the hospital administration to register as a doctor.
-            </p>
-          )}
-
-          <Button
-            type="submit"
-            variant="hero"
-            size="lg"
-            className="w-full gap-2"
-            disabled={isLoading || (isSignUp && selectedRole === "doctor")}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {isSignUp ? "Creating account..." : "Signing in..."}
-              </>
-            ) : (
-              <>
-                {isSignUp ? "Create Account" : `Sign In as ${selectedRole === "doctor" ? "Doctor" : "Patient"}`}
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </Button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setErrors({});
-            }}
-            className="text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            {isSignUp
-              ? "Already have an account? Sign in"
-              : "Don't have an account? Sign up"}
-          </button>
-        </div>
+          </>
+        )}
       </Card>
     </div>
   );
