@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Brain, Mail, Lock, User, ArrowRight, Loader2, Stethoscope, UserRound } from "lucide-react";
+import { Brain, Mail, Lock, User, ArrowRight, Loader2, Stethoscope, UserRound, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -177,6 +177,16 @@ export default function Auth() {
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse-slow" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-info/10 rounded-full blur-3xl animate-pulse-slow" />
       </div>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-4 left-4 gap-2 z-20"
+        onClick={() => navigate("/")}
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back
+      </Button>
 
       <Card className="w-full max-w-md p-8 bg-gradient-card border-border/50 relative z-10 animate-slide-up">
         <div className="flex flex-col items-center mb-6">
