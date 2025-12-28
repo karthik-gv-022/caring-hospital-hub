@@ -281,7 +281,26 @@ IMPORTANT GUIDELINES:
 - Be concise but thorough
 - Use the doctor IDs from context when booking
 - When analyzing images, be descriptive but never diagnostic
-- ${patientId ? "Patient is registered and can book appointments." : "Patient is NOT registered. They need to register before booking appointments."}`;
+- ${patientId ? "Patient is registered and can book appointments." : "Patient is NOT registered. They need to register before booking appointments."}
+
+BILINGUAL RESPONSE REQUIREMENT:
+- ALWAYS detect the language of the user's message
+- If the user writes in a regional Indian language (Hindi, Tamil, Telugu, Bengali, Kannada, Malayalam, Marathi, Gujarati, Punjabi, Odia, etc.), respond in BOTH:
+  1. English (first)
+  2. Then the same response translated in that regional language
+- Format bilingual responses like this:
+  
+  **English:**
+  [Your response in English]
+  
+  ---
+  
+  **हिंदी:** (or the appropriate language name in its script)
+  [Same response translated to the regional language]
+  
+- If the user writes in English only, respond in English only
+- Maintain the same helpful tone and accuracy in both languages
+- Include action tags only once (in the English section)`;
 
     // First API call with tools
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
